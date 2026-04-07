@@ -1,12 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 import { MYSTIC_PROMPT, USER_PROFILE } from "../constants";
 
-// Khởi tạo AI với API Key từ môi trường
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
+// Khởi tạo AI - Lưu ý: process.env.GEMINI_API_KEY sẽ được Vite thay thế bằng giá trị thực tế
+// Chúng ta sẽ kiểm tra khóa ngay trong hàm gọi để tránh lỗi khởi tạo sớm
 export async function getMysticResponse(message: string, history: { role: "user" | "model"; parts: { text: string }[] }[]) {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.length < 10) {
+    return "Lỗi: Hệ thống chưa nhận được API Key hợp lệ từ phần Secrets. Nam hãy thử làm mới (Refresh) trang web hoặc đợi vài giây để máy chủ cập nhật nhé.";
+  }
+
   try {
-    // Đảm bảo chúng ta luôn gửi kèm ngữ cảnh cá nhân trong mỗi lần gọi
+    const ai = new GoogleGenAI({ apiKey });
+    
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [
@@ -33,17 +39,9 @@ export async function getMysticResponse(message: string, history: { role: "user"
       }
     });
 
-    if (!response.text) {
-      throw new Error("AI returned empty response");
-    }
-
-    return response.text;
+    return response.text || "Các vì sao đang mờ mịt... Hãy thử lại sau.";
   } catch (error) {
-    console.error("Detailed AI Error:", error);
-    // Trả về thông báo lỗi chi tiết hơn để người dùng biết
-    if (!process.env.GEMINI_API_KEY) {
-      return "Lỗi: Chưa cấu hình API Key cho AI. Nam hãy kiểm tra lại phần Secrets.";
-    }
-    return "Các vì sao đang bị che khuất bởi mây mù... Hãy thử hỏi lại một cách cụ thể hơn nhé, Nam.";
+    console.error("AI Error:", error);
+    return "Có một chút nhiễu loạn từ vũ trụ (Lỗi kết nối AI). Nam hãy thử lại sau giây lát nhé.";
   }
 }
